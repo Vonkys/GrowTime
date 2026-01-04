@@ -31,6 +31,7 @@ button{width:100%;padding:10px;margin-top:8px;border:none;border-radius:12px;fon
   border-radius:10px;
   background:#24382c;
 }
+
 .fert-left{
   display:flex;
   align-items:center;
@@ -237,15 +238,15 @@ function renderPopup(){
 
   // === HNOJIVA – DOČASNÝ VÝBĚR ===
   fertList.innerHTML = FERTS.map(f => `
-  <div class="fert-item" onclick="toggleFert('${f.id}')">
+  <label class="fert-item">
     <div class="fert-left">
       <input type="checkbox"
         ${p._tmpFerts.includes(f.id) ? 'checked' : ''}
-        onclick="event.stopPropagation()">
+        onchange="toggleFert('${f.id}')">
       <div class="fert-name">${f.name}</div>
     </div>
     <div class="fert-dose">${f.dose}</div>
-  </div>
+  </label>
 `).join('');
 
   // === PŘIPRAVENÁ ZÁLIVKA ===
