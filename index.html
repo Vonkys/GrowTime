@@ -135,7 +135,7 @@ label{font-size:.85rem;color:var(--muted)}
 </div>
 <script>
 const FERTS = [
-{ id:'Kys', name:'PH -', dose:'2 ml' },
+{ id:'PH-', name:'PH -', dose:'2 ml' },
 { id:'Vit', name:'Vitamín', dose:'1 kapka' },
 { id:'CalMag', name:'CalMag', dose:'5 ml' },
 { id:'TNT', name:'TNT', dose:'25 ml' },
@@ -149,7 +149,8 @@ const FERT_COLORS = {
   Bloom: '#66bb6a',
   CalMag: '#8d6e63',
   Booster: '#ab47bc',
-  Kys: '#ef5350'
+  PH-: '#ef5350',
+  Vit: '#ffa726'
 };
 let plants=JSON.parse(localStorage.getItem('growtime')||'[]');
 let active=null;
@@ -350,6 +351,7 @@ render();
 
 </body>
 </html>
+
 
 
 
