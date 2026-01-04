@@ -52,7 +52,13 @@ button{width:100%;padding:10px;margin-top:8px;border:none;border-radius:12px;fon
 .phase button{flex:1}
 .phase .active{background:var(--accent);color:#002b16;font-weight:700}
 .phase .inactive{background:#24382c;color:var(--muted)}
-.badges span{display:inline-block;background:#2e4a3b;padding:4px 8px;border-radius:10px;font-size:.8rem;margin:3px}
+.badges span{
+  padding:4px 10px;
+  border-radius:999px;
+  font-size:.8rem;
+  font-weight:600;
+  color:#0f1a14;
+}
 small{color:var(--muted)}
 #popup,#addPopup{position:fixed;inset:0;background:var(--bg);transform:translateY(100%);transition:.25s;z-index:10;display:flex;flex-direction:column}
 #popup.show,#addPopup.show{transform:none}
@@ -129,6 +135,14 @@ const FERTS = [
   { id:'Booster', name:'Booster', dose:'10 ml' },
   { id:'Kys', name:'Kys. fosf.', dose:'2 ml' }
 ];
+const FERT_COLORS = {
+  TNT: '#fdd835',
+  Fosfor: '#42a5f5',
+  Bloom: '#66bb6a',
+  CalMag: '#8d6e63',
+  Booster: '#ab47bc',
+  Kys: '#ef5350'
+};
 let plants=JSON.parse(localStorage.getItem('growtime')||'[]');
 let active=null;
 const now=()=>Date.now();
@@ -256,8 +270,10 @@ function renderPopup(){
         Připraveno ${new Date(p.preparedWatering.preparedAt).toLocaleString()}
       </small>
       <div class="badges">
-        ${p.preparedWatering.ferts.map(x => `<span>${x}</span>`).join('')}
-      </div>
+  ${p.preparedWatering.ferts.map(x =>
+    `<span style="background:${FERT_COLORS[x]}">${x}</span>`
+  ).join('')}
+</div>
     `
     : '<small>Nic nepřipraveno</small>';
 
@@ -268,8 +284,10 @@ function renderPopup(){
         Zalito ${new Date(p.lastWatering.wateredAt).toLocaleString()}
       </small>
       <div class="badges">
-        ${p.lastWatering.ferts.map(x => `<span>${x}</span>`).join('')}
-      </div>
+  ${p.lastWatering.ferts.map(x =>
+    `<span style="background:${FERT_COLORS[x]}">${x}</span>`
+  ).join('')}
+</div>
     `
     : '—';
 }
