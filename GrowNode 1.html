@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GrowTime</title>
+
+<style>
+:root{
+  --bg:#0f1a14; --card:#16251c; --card2:#1e3327;
+  --accent:#4caf50; --text:#e8f5e9; --muted:#9fb7a8;
+  --danger:#b23b3b;
+}
+body{margin:0;font-family:system-ui;background:var(--bg);color:var(--text)}
+header{padding:16px;text-align:center;font-size:1.8rem;font-weight:700}
+#grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:12px}
+.card{background:var(--card);border-radius:16px;padding:18px;text-align:center;cursor:pointer}
+.card span{font-size:2rem}
+.add{font-size:2.4rem;color:var(--accent)}
+button{width:100%;padding:10px;margin-top:8px;border:none;border-radius:12px;font-size:1rem}
+.primary{background:var(--accent);color:#002b16;font-weight:700}
+.secondary{background:#2a3f33;color:var(--text)}
+.danger{background:var(--danger);color:white;font-weight:700}
+.section{background:var(--card2);padding:12px;border-radius:14px;margin-bottom:12px}
+.phase{display:flex;gap:8px}
+.phase button{flex:1}
+.phase .active{background:var(--accent);color:#002b16;font-weight:700}
+.phase .inactive{background:#24382c;color:var(--muted)}
+.badges span{display:inline-block;background:#2e4a3b;padding:4px 8px;border-radius:10px;font-size:.8rem;margin:3px}
+small{color:var(--muted)}
+#popup,#addPopup{position:fixed;inset:0;background:var(--bg);transform:translateY(100%);transition:.25s;z-index:10;display:flex;flex-direction:column}
+#popup.show,#addPopup.show{transform:none}
+.popup-header{padding:12px;display:flex;justify-content:space-between}
+.popup-header input{background:none;border:none;color:var(--text);font-size:1.2rem;width:80%}
+.popup-body{padding:12px;overflow:auto;flex:1}
+input{width:100%;padding:10px;margin-top:6px;border-radius:10px;border:none;background:#24382c;color:var(--text)}
+label{font-size:.85rem;color:var(--muted)}
+</style>
+</head>
+
+<body>
+
+<header>GrowTime</header>
+<div id="grid"></div>
+
+<!-- ADD -->
+<div id="addPopup">
+  <div class="popup-header">
+    <strong>Přidat kytku</strong>
+    <button onclick="closeAdd()">✕</button>
+  </div>
+  <div class="popup-body">
+    <label>Název</label>
+    <input id="newName">
+    <label>Datum a čas zasazení</label>
+    <input type="datetime-local" id="newPlanted">
+    <label>Datum a čas květu (volitelné)</label>
+    <input type="datetime-local" id="newBloom">
+    <button class="primary" onclick="confirmAdd()">Přidat</button>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div id="popup">
+  <div class="popup-header">
+    <input id="plantName">
+    <button onclick="closePopup()">✕</button>
+  </div>
+  <div class="popup-body">
+
+    <div class="section">
+      <strong>FÁZE</strong>
+      <div class="phase">
+        <button id="btnGrowth" onclick="switchPhase('growth')">🌱 Růst</button>
+        <button id="btnBloom" onclick="switchPhase('bloom')">🌸 Květ</button>
+      </div>
+      <div id="phaseInfo"></div>
+    </div>
+
+    <div class="section">
+      <strong>ZÁLIVKA</strong>
+      <div id="fertList"></div>
+      <button class="primary" onclick="prepare()">Připravit</button>
+      <div id="prepared"></div>
+    </div>
+
+    <div class="section">
+      <strong>POSLEDNÍ ZÁLIVKA</strong>
+      <div id="lastWatering">—</div>
+      <button class="secondary" onclick="watered()">Zalít</button>
+    </div>
+
+    <button class="danger" onclick="deletePlant()">🗑️ Smazat kytku</button>
+    <button class="secondary" onclick="closePopup()">Zavřít</button>
+  </div>
+</div>
+
+<script>
+const FERTS=['TNT','Bloom','Fosfor','CalMag','Booster','Kys.fosf.'];
+let plants=JSON.parse(localStorage.getItem('growtime')||'[]');
+let active=null;
+const now=()=>Date.now();
+const save=()=>localStorage.setItem('growtime',JSON.stringify(plants));
+
+function format(ms){
+  ms=Math.max(0,ms);
+  const s=Math.floor(ms/1000);
+  const d=Math.floor(s/86400);
+  const h=Math.floor((s%86400)/3600);
+  const m=Math.floor((s%3600)/60);
+  const sec=s%60;
+  return `${d} dní ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+
+function render(){
+  grid.innerHTML='';
+  plants.forEach((p,i)=>{
+    grid.innerHTML+=`<div class="card" onclick="openPopup(${i})"><span>🪴</span><br>${p.name}</div>`;
+  });
+  grid.innerHTML+=`<div class="card add" onclick="openAdd()">＋</div>`;
+}
+
+function openAdd(){addPopup.classList.add('show')}
+function closeAdd(){addPopup.classList.remove('show')}
+
+function confirmAdd(){
+  if(!newName.value||!newPlanted.value) return alert('Vyplň název a zasazení');
+  const planted=+new Date(newPlanted.value);
+  const bloom=newBloom.value?+new Date(newBloom.value):null;
+
+  let plant={
+    name:newName.value,
+    phase:'growth',
+    phaseStartedAt:planted,
+    growthTime:0,
+    bloomTime:0,
+    _tmpFerts:[],
+    preparedWatering:null,
+    lastWatering:null
+  };
+
+  if(bloom){
+    plant.growthTime=bloom-planted;
+    plant.phase='bloom';
+    plant.phaseStartedAt=bloom;
+  }
+
+  plants.push(plant);
+  newName.value=newPlanted.value=newBloom.value='';
+  closeAdd();save();render();
+}
+
+function openPopup(i){
+  active=i;
+  popup.classList.add('show');
+  plantName.value=plants[i].name;
+  renderPopup();
+}
+function closePopup(){popup.classList.remove('show');active=null}
+
+plantName.oninput=()=>{
+  plants[active].name=plantName.value;
+  save();render();
+};
+
+function switchPhase(target){
+  const p=plants[active];
+  if(p.phase===target) return;
+  const t=now();
+  const elapsed=t-p.phaseStartedAt;
+  if(p.phase==='growth') p.growthTime+=elapsed;
+  if(p.phase==='bloom') p.bloomTime+=elapsed;
+  p.phase=target;
+  p.phaseStartedAt=t;
+  save();renderPopup();
+}
+
+function renderPopup(){
+  if(active === null) return;
+
+  const p = plants[active];
+  const t = now();
+
+  // === FÁZE – AKTIVNÍ TLAČÍTKO ===
+  btnGrowth.className = p.phase === 'growth' ? 'active' : 'inactive';
+  btnBloom.className  = p.phase === 'bloom'  ? 'active' : 'inactive';
+
+  // === ČASY FÁZÍ ===
+  const growth =
+    p.growthTime + (p.phase === 'growth' ? (t - p.phaseStartedAt) : 0);
+
+  const bloom =
+    p.bloomTime + (p.phase === 'bloom' ? (t - p.phaseStartedAt) : 0);
+
+  let html = `
+    <small>Růst: ${format(growth)}</small><br>
+    <small>Květ: ${format(bloom)}</small>
+  `;
+
+  if(bloom > 0){
+    const left = 56 * 86400000 - bloom;
+    html += `<br><strong>Konec květu za ${format(left)}</strong>`;
+  }
+
+  phaseInfo.innerHTML = html;
+
+  // === HNOJIVA – DOČASNÝ VÝBĚR ===
+  fertList.innerHTML = FERTS.map(f => `
+    <label>
+      <input type="checkbox"
+        ${p._tmpFerts.includes(f) ? 'checked' : ''}
+        onchange="toggleFert('${f}')">
+      ${f}
+    </label>
+  `).join('');
+
+  // === PŘIPRAVENÁ ZÁLIVKA ===
+  prepared.innerHTML = p.preparedWatering
+    ? `
+      <small>
+        Připraveno ${new Date(p.preparedWatering.preparedAt).toLocaleString()}
+      </small>
+      <div class="badges">
+        ${p.preparedWatering.ferts.map(x => `<span>${x}</span>`).join('')}
+      </div>
+    `
+    : '<small>Nic nepřipraveno</small>';
+
+  // === POSLEDNÍ ZÁLIVKA ===
+  lastWatering.innerHTML = p.lastWatering
+    ? `
+      <small>
+        Zalito ${new Date(p.lastWatering.wateredAt).toLocaleString()}
+      </small>
+      <div class="badges">
+        ${p.lastWatering.ferts.map(x => `<span>${x}</span>`).join('')}
+      </div>
+    `
+    : '—';
+}
+
+
+function toggleFert(f){
+  const p=plants[active];
+  p._tmpFerts.includes(f)
+    ? p._tmpFerts=p._tmpFerts.filter(x=>x!==f)
+    : p._tmpFerts.push(f);
+}
+
+function prepare(){
+  const p=plants[active];
+  if(!p._tmpFerts.length) return;
+
+  p.preparedWatering={
+    preparedAt: now(),
+    ferts:[...p._tmpFerts]
+  };
+
+  p._tmpFerts=[];
+  save();
+  renderPopup();
+}
+
+
+function watered(){
+  const p=plants[active];
+  if(!p.preparedWatering) return;
+
+  p.lastWatering={
+    wateredAt: now(),              // ⬅️ TADY JE TEN ROZDÍL
+    ferts:[...p.preparedWatering.ferts]
+  };
+
+  p.preparedWatering=null;
+  save();
+  renderPopup();
+}
+
+
+function deletePlant(){
+  if(!confirm('Opravdu smazat?')) return;
+  plants.splice(active,1);
+  save();closePopup();render();
+}
+
+setInterval(()=>{ if(active!==null) renderPopup(); },1000);
+render();
+</script>
+
+</body>
+</html>
