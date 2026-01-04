@@ -166,6 +166,18 @@ function format(ms){
   const sec=s%60;
   return `${d} dní ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
+function timeAgo(ts){
+  const diff = Date.now() - ts;
+  const sec = Math.floor(diff / 1000);
+  const min = Math.floor(sec / 60);
+  const h   = Math.floor(min / 60);
+  const d   = Math.floor(h / 24);
+
+  if(d > 0) return `před ${d} d`;
+  if(h > 0) return `před ${h} h ${min % 60} min`;
+  if(min > 0) return `před ${min} min`;
+  return `před ${sec} s`;
+}
 
 function render(){
   grid.innerHTML='';
@@ -289,9 +301,10 @@ function renderPopup(){
   // === POSLEDNÍ ZÁLIVKA ===
   lastWatering.innerHTML = p.lastWatering
     ? `
-      <small>
-        Zalito ${new Date(p.lastWatering.wateredAt).toLocaleString()}
-      </small>
+  <small>
+  Zalito ${new Date(p.lastWatering.wateredAt).toLocaleString()}
+  (${timeAgo(p.lastWatering.wateredAt)})
+  </small>
       <div class="badges">
   ${p.lastWatering.ferts.map(x =>
     `<span style="background:${FERT_COLORS[x]}">${x}</span>`
