@@ -22,6 +22,31 @@ button{width:100%;padding:10px;margin-top:8px;border:none;border-radius:12px;fon
 .secondary{background:#2a3f33;color:var(--text)}
 .danger{background:var(--danger);color:white;font-weight:700}
 .section{background:var(--card2);padding:12px;border-radius:14px;margin-bottom:12px}
+.fert-item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 12px;
+  margin-top:6px;
+  border-radius:10px;
+  background:#24382c;
+}
+.fert-left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.fert-item input[type="checkbox"]{
+  width:20px;
+  height:20px;
+}
+.fert-name{
+  font-weight:600;
+}
+.fert-dose{
+  font-size:.8rem;
+  color:var(--muted);
+}
 .phase{display:flex;gap:8px}
 .phase button{flex:1}
 .phase .active{background:var(--accent);color:#002b16;font-weight:700}
@@ -94,9 +119,15 @@ label{font-size:.85rem;color:var(--muted)}
     <button class="secondary" onclick="closePopup()">Zavřít</button>
   </div>
 </div>
-
 <script>
-const FERTS=['TNT','Bloom','Fosfor','CalMag','Booster','Kys.fosf.'];
+const FERTS = [
+  { id:'TNT', name:'TNT', dose:'25 ml' },
+  { id:'Bloom', name:'Bloom', dose:'25 ml' },
+  { id:'Fosfor', name:'Fosfor', dose:'12.5 ml' },
+  { id:'CalMag', name:'CalMag', dose:'5 ml' },
+  { id:'Booster', name:'Booster', dose:'10 ml' },
+  { id:'Kys', name:'Kys. fosf.', dose:'2 ml' }
+];
 let plants=JSON.parse(localStorage.getItem('growtime')||'[]');
 let active=null;
 const now=()=>Date.now();
@@ -206,13 +237,16 @@ function renderPopup(){
 
   // === HNOJIVA – DOČASNÝ VÝBĚR ===
   fertList.innerHTML = FERTS.map(f => `
-    <label>
+  <div class="fert-item" onclick="toggleFert('${f.id}')">
+    <div class="fert-left">
       <input type="checkbox"
-        ${p._tmpFerts.includes(f) ? 'checked' : ''}
-        onchange="toggleFert('${f}')">
-      ${f}
-    </label>
-  `).join('');
+        ${p._tmpFerts.includes(f.id) ? 'checked' : ''}
+        onclick="event.stopPropagation()">
+      <div class="fert-name">${f.name}</div>
+    </div>
+    <div class="fert-dose">${f.dose}</div>
+  </div>
+`).join('');
 
   // === PŘIPRAVENÁ ZÁLIVKA ===
   prepared.innerHTML = p.preparedWatering
