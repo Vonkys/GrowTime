@@ -168,16 +168,28 @@ function format(ms){
 }
 function timeAgo(ts){
   const diff = Date.now() - ts;
+  if(diff < 0) return 'teď';
+
   const sec = Math.floor(diff / 1000);
   const min = Math.floor(sec / 60);
   const h   = Math.floor(min / 60);
   const d   = Math.floor(h / 24);
 
-  if(d > 0) return `před ${d} d`;
-  if(h > 0) return `před ${h} h ${min % 60} min`;
+  const remH = h % 24;
+  const remM = min % 60;
+
+  if(d > 0){
+    let out = `před ${d} d`;
+    if(remH > 0) out += ` ${remH} h`;
+    if(remM > 0) out += ` ${remM} min`;
+    return out;
+  }
+
+  if(h > 0) return `před ${h} h ${remM} min`;
   if(min > 0) return `před ${min} min`;
   return `před ${sec} s`;
 }
+
 
 function render(){
   grid.innerHTML='';
@@ -364,6 +376,7 @@ render();
 
 </body>
 </html>
+
 
 
 
