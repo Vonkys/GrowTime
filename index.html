@@ -142,6 +142,7 @@ const FERTS = [
 { id:'Bloom', name:'Bloom', dose:'25 ml' },
 { id:'Booster', name:'Booster', dose:'10 ml' },
 { id:'Fosfor', name:'Fosfor', dose:'12.5 ml' },
+{ id:'Final', name:'FinalFlush', dose:'10 ml' },
 ];
 const FERT_COLORS = {
   TNT: '#fdd835',
@@ -150,7 +151,8 @@ const FERT_COLORS = {
   CalMag: '#8d6e63',
   Booster: '#ab47bc',
   PH: '#ef5350',
-  Vit: '#ffa726'
+  Vit: '#ffa726',
+  Final: '#a40628'
 };
 let plants=JSON.parse(localStorage.getItem('growtime')||'[]');
 let active=null;
@@ -376,6 +378,7 @@ render();
 
 </body>
 </html>
+
 
 
 
