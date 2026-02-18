@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GrowTime</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 
 <style>
 :root{
@@ -22,19 +25,55 @@ button{width:100%;padding:10px;margin-top:8px;border:none;border-radius:12px;fon
 .secondary{background:#2a3f33;color:var(--text)}
 .danger{background:var(--danger);color:white;font-weight:700}
 .section{background:var(--card2);padding:12px;border-radius:14px;margin-bottom:12px}
-.fert-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;margin-top:6px;border-radius:10px;background:#24382c}
-.water-btn{background:#42a5f5;color:#0f1a14;font-weight:700}
-.fert-left{display:flex;align-items:center;gap:10px}
-.fert-item input{width:20px;height:20px}
+.fert-item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 12px;
+  margin-top:6px;
+  border-radius:10px;
+  background:#24382c;
+}
+.water-btn{
+  background:#42a5f5;
+  color:#0f1a14;
+  font-weight:700;
+}
+.water-btn:active{
+  opacity:.85;
+}
+.fert-left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.fert-item input[type="checkbox"]{
+  width:20px;
+  height:20px;
+}
+.fert-name{
+  font-weight:600;
+}
+.fert-dose{
+  font-size:.8rem;
+  color:var(--muted);
+}
 .phase{display:flex;gap:8px}
 .phase button{flex:1}
 .phase .active{background:var(--accent);color:#002b16;font-weight:700}
 .phase .inactive{background:#24382c;color:var(--muted)}
-.badges span{padding:4px 10px;border-radius:999px;font-size:.8rem;font-weight:600;color:#0f1a14}
+.badges span{
+  padding:4px 10px;
+  border-radius:999px;
+  font-size:.8rem;
+  font-weight:600;
+  color:#0f1a14;
+}
 small{color:var(--muted)}
 #popup,#addPopup{position:fixed;inset:0;background:var(--bg);transform:translateY(100%);transition:.25s;z-index:10;display:flex;flex-direction:column}
 #popup.show,#addPopup.show{transform:none}
 .popup-header{padding:12px;display:flex;justify-content:space-between}
+.popup-header input{background:none;border:none;color:var(--text);font-size:1.2rem;width:80%}
 .popup-body{padding:12px;overflow:auto;flex:1}
 input{width:100%;padding:10px;margin-top:6px;border-radius:10px;border:none;background:#24382c;color:var(--text)}
 label{font-size:.85rem;color:var(--muted)}
@@ -86,38 +125,28 @@ label{font-size:.85rem;color:var(--muted)}
       <button class="primary" onclick="prepare()">Připravit</button>
       <div id="prepared"></div>
     </div>
-
     <div class="section">
-      <button class="water-btn" onclick="watered()">🚿 Zalít</button>
-    </div>
-
+  <button class="water-btn" onclick="watered()">🚿 Zalít</button>
+</div>
     <div class="section">
-      <strong>POSLEDNÍ ZÁLIVKA</strong>
-      <div id="lastWatering">—</div>
-    </div>
-
+  <strong>POSLEDNÍ ZÁLIVKA</strong>
+  <div id="lastWatering">—</div>
+</div>
     <button class="danger" onclick="deletePlant()">🗑️ Smazat kytku</button>
     <button class="secondary" onclick="closePopup()">Zavřít</button>
   </div>
 </div>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-getFirestore, collection, addDoc, getDocs,
-doc, updateDoc, deleteDoc
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
+<script>
+/* FIREBASE INIT */
 const firebaseConfig = {
-apiKey:"AIzaSyAOVDBGuRzb-4qJm3VHVQC4G2t2BWh1Wx8",
-authDomain:"growtime-9aa80.firebaseapp.com",
-projectId:"growtime-9aa80"
+  apiKey: "AIzaSyAOVDBGuRzb-4qJm3VHVQC4G2t2BWh1Wx8",
+  authDomain: "growtime-9aa80.firebaseapp.com",
+  projectId: "growtime-9aa80"
 };
 
-const app=initializeApp(firebaseConfig);
-const db=getFirestore(app);
-
-/* ===== PŮVODNÍ KONSTANTY — BEZE ZMĚNY ===== */
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+firebase.auth().signInAnonymously();
 
 const FERTS = [
 { id:'PH', name:'PH -', dose:'2 ml' },
@@ -129,7 +158,6 @@ const FERTS = [
 { id:'Fosfor', name:'Fosfor', dose:'12.5 ml' },
 { id:'Final', name:'FinalFlush', dose:'10 ml' },
 ];
-
 const FERT_COLORS = {
   TNT: '#fdd835',
   Fosfor: '#42a5f5',
@@ -141,158 +169,276 @@ const FERT_COLORS = {
   Final: '#a40628'
 };
 
-/* ===== DATA ===== */
+let plants = [];
+let active = null;
+const now = () => Date.now();
 
-let plants=[];
-let active=null;
-const now=()=>Date.now();
+async function save(){
+  for(const p of plants){
+    const data = JSON.parse(JSON.stringify(p));
 
-/* ===== FIREBASE LOAD ===== */
-
-async function loadPlants(){
-const snap=await getDocs(collection(db,"plants"));
-plants=snap.docs.map(d=>({id:d.id,...d.data()}));
-render();
-}
-loadPlants();
-
-async function savePlant(p){
-await updateDoc(doc(db,"plants",p.id),p);
+    if(!p._id){
+      const ref = await db.collection("plants").add(data);
+      p._id = ref.id;
+    } else {
+      await db.collection("plants").doc(p._id).set(data);
+    }
+  }
 }
 
-/* ===== ZBYTEK JE TVŮJ PŮVODNÍ KÓD — JEN SAVE → savePlant ===== */
 
 function format(ms){
-ms=Math.max(0,ms);
-const s=Math.floor(ms/1000);
-const d=Math.floor(s/86400);
-const h=Math.floor((s%86400)/3600);
-const m=Math.floor((s%3600)/60);
-const sec=s%60;
-return `${d} dní ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  ms=Math.max(0,ms);
+  const s=Math.floor(ms/1000);
+  const d=Math.floor(s/86400);
+  const h=Math.floor((s%86400)/3600);
+  const m=Math.floor((s%3600)/60);
+  const sec=s%60;
+  return `${d} dní ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
+function timeAgo(ts){
+  const diff = Date.now() - ts;
+  if(diff < 0) return 'teď';
+
+  const sec = Math.floor(diff / 1000);
+  const min = Math.floor(sec / 60);
+  const h   = Math.floor(min / 60);
+  const d   = Math.floor(h / 24);
+
+  const remH = h % 24;
+  const remM = min % 60;
+
+  if(d > 0){
+    let out = `před ${d} d`;
+    if(remH > 0) out += ` ${remH} h`;
+    if(remM > 0) out += ` ${remM} min`;
+    return out;
+  }
+
+  if(h > 0) return `před ${h} h ${remM} min`;
+  if(min > 0) return `před ${min} min`;
+  return `před ${sec} s`;
+}
+
+
+async function load(){
+  const snap = await db.collection("plants").get();
+
+  plants = snap.docs.map(d=>{
+    const p = d.data();
+    p._id = d.id;
+
+    // timestamp → číslo (to řeší bug s nulovým květem)
+    if(p.phaseStartedAt?.toMillis) p.phaseStartedAt = p.phaseStartedAt.toMillis();
+    if(p.preparedWatering?.preparedAt?.toMillis)
+      p.preparedWatering.preparedAt = p.preparedWatering.preparedAt.toMillis();
+    if(p.lastWatering?.wateredAt?.toMillis)
+      p.lastWatering.wateredAt = p.lastWatering.wateredAt.toMillis();
+
+    return p;
+  });
+
+  render();
+}
+
+load();
 
 function render(){
-grid.innerHTML='';
-plants.forEach((p,i)=>{
-grid.innerHTML+=`<div class="card" onclick="openPopup(${i})"><span>🪴</span><br>${p.name}</div>`;
-});
-grid.innerHTML+=`<div class="card add" onclick="openAdd()">＋</div>`;
+  grid.innerHTML='';
+  plants.forEach((p,i)=>{
+    grid.innerHTML+=`<div class="card" onclick="openPopup(${i})">
+      <span>🪴</span><br>${p.name}
+    </div>`;
+  });
+  grid.innerHTML+=`<div class="card add" onclick="openAdd()">＋</div>`;
 }
 
-window.openAdd=()=>addPopup.classList.add('show');
-window.closeAdd=()=>addPopup.classList.remove('show');
 
-window.confirmAdd=async function(){
-if(!newName.value||!newPlanted.value) return;
-const planted=+new Date(newPlanted.value);
+function openAdd(){addPopup.classList.add('show')}
+function closeAdd(){addPopup.classList.remove('show')}
 
-let plant={
-name:newName.value,
-phase:'growth',
-phaseStartedAt:planted,
-growthTime:0,
-bloomTime:0,
-_tmpFerts:[],
-preparedWatering:null,
-lastWatering:null
-};
+function confirmAdd(){
+  if(!newName.value||!newPlanted.value) return alert('Vyplň název a zasazení');
+  const planted=+new Date(newPlanted.value);
+  const bloom=newBloom.value?+new Date(newBloom.value):null;
 
-const ref=await addDoc(collection(db,"plants"),plant);
-plant.id=ref.id;
-plants.push(plant);
+  let plant={
+    name:newName.value,
+    phase:'growth',
+    phaseStartedAt:planted,
+    growthTime:0,
+    bloomTime:0,
+    _tmpFerts:[],
+    preparedWatering:null,
+    lastWatering:null
+  };
 
-closeAdd();
-render();
-};
+  if(bloom){
+    plant.growthTime=bloom-planted;
+    plant.phase='bloom';
+    plant.phaseStartedAt=bloom;
+  }
 
-window.openPopup=i=>{
-active=i;
-popup.classList.add('show');
-plantName.value=plants[i].name;
-renderPopup();
-};
+  plants.push(plant);
+  newName.value=newPlanted.value=newBloom.value='';
+  closeAdd();save();render();
+}
 
-window.closePopup=()=>popup.classList.remove('show');
+function openPopup(i){
+  active=i;
+  popup.classList.add('show');
+  plantName.value=plants[i].name;
+  renderPopup();
+}
+function closePopup(){popup.classList.remove('show');active=null}
 
 plantName.oninput=()=>{
-plants[active].name=plantName.value;
-savePlant(plants[active]);
-render();
+  plants[active].name=plantName.value;
+  save();render();
 };
 
-window.switchPhase=target=>{
-const p=plants[active];
-if(p.phase===target) return;
-const elapsed=now()-p.phaseStartedAt;
-if(p.phase==='growth') p.growthTime+=elapsed;
-else p.bloomTime+=elapsed;
-p.phase=target;
-p.phaseStartedAt=now();
-savePlant(p);
-renderPopup();
-};
-
-window.toggleFert=f=>{
-const p=plants[active];
-p._tmpFerts.includes(f)
-? p._tmpFerts=p._tmpFerts.filter(x=>x!==f)
-: p._tmpFerts.push(f);
-};
-
-window.prepare=()=>{
-const p=plants[active];
-if(!p._tmpFerts.length) return;
-p.preparedWatering={preparedAt:now(),ferts:[...p._tmpFerts]};
-p._tmpFerts=[];
-savePlant(p);
-renderPopup();
-};
-
-window.watered=()=>{
-const p=plants[active];
-if(!p.preparedWatering) return;
-p.lastWatering={wateredAt:now(),ferts:[...p.preparedWatering.ferts]};
-p.preparedWatering=null;
-savePlant(p);
-renderPopup();
-};
-
-window.deletePlant=async()=>{
-await deleteDoc(doc(db,"plants",plants[active].id));
-plants.splice(active,1);
-render();
-closePopup();
-};
+function switchPhase(target){
+  const p=plants[active];
+  if(p.phase===target) return;
+  const t=now();
+  const elapsed=t-p.phaseStartedAt;
+  if(p.phase==='growth') p.growthTime+=elapsed;
+  if(p.phase==='bloom') p.bloomTime+=elapsed;
+  p.phase=target;
+  p.phaseStartedAt=t;
+  save();renderPopup();
+}
 
 function renderPopup(){
-const p=plants[active];
-btnGrowth.className=p.phase==='growth'?'active':'inactive';
-btnBloom.className=p.phase==='bloom'?'active':'inactive';
+  if(active === null) return;
 
-const t=now();
-const growth=p.growthTime+(p.phase==='growth'?t-p.phaseStartedAt:0);
-const bloom=p.bloomTime+(p.phase==='bloom'?t-p.phaseStartedAt:0);
+  const p = plants[active];
+  const t = now();
 
-phaseInfo.innerHTML=`<small>Růst: ${format(growth)}</small><br><small>Květ: ${format(bloom)}</small>`;
+  // === FÁZE – AKTIVNÍ TLAČÍTKO ===
+  btnGrowth.className = p.phase === 'growth' ? 'active' : 'inactive';
+  btnBloom.className  = p.phase === 'bloom'  ? 'active' : 'inactive';
 
-fertList.innerHTML=FERTS.map(f=>`
-<label class="fert-item">
-<div class="fert-left">
-<input type="checkbox" ${p._tmpFerts.includes(f.id)?'checked':''}
-onchange="toggleFert('${f.id}')">
-<div>${f.name}</div>
+  // === ČASY FÁZÍ ===
+  const growth =
+    p.growthTime + (p.phase === 'growth' ? (t - p.phaseStartedAt) : 0);
+
+  const bloom =
+    p.bloomTime + (p.phase === 'bloom' ? (t - p.phaseStartedAt) : 0);
+
+  let html = `
+    <small>Růst: ${format(growth)}</small><br>
+    <small>Květ: ${format(bloom)}</small>
+  `;
+
+  if(bloom > 0){
+    const left = 56 * 86400000 - bloom;
+    html += `<br><strong>Konec květu za ${format(left)}</strong>`;
+  }
+
+  phaseInfo.innerHTML = html;
+
+  // === HNOJIVA – DOČASNÝ VÝBĚR ===
+  fertList.innerHTML = FERTS.map(f => `
+  <label class="fert-item">
+    <div class="fert-left">
+      <input type="checkbox"
+        ${p._tmpFerts.includes(f.id) ? 'checked' : ''}
+        onchange="toggleFert('${f.id}')">
+      <div class="fert-name">${f.name}</div>
+    </div>
+    <div class="fert-dose">${f.dose}</div>
+  </label>
+`).join('');
+
+  // === PŘIPRAVENÁ ZÁLIVKA ===
+  prepared.innerHTML = p.preparedWatering
+    ? `
+      <small>
+        Připraveno ${new Date(p.preparedWatering.preparedAt).toLocaleString()}
+      </small>
+      <div class="badges">
+  ${p.preparedWatering.ferts.map(x =>
+    `<span style="background:${FERT_COLORS[x]}">${x}</span>`
+  ).join('')}
 </div>
-<div>${f.dose}</div>
-</label>`).join('');
+    `
+    : '<small>Nic nepřipraveno</small>';
 
-lastWatering.innerHTML=p.lastWatering
-? new Date(p.lastWatering.wateredAt).toLocaleString()
-: '—';
+  // === POSLEDNÍ ZÁLIVKA ===
+  lastWatering.innerHTML = p.lastWatering
+    ? `
+  <small>
+  Zalito ${new Date(p.lastWatering.wateredAt).toLocaleString()}
+  (${timeAgo(p.lastWatering.wateredAt)})
+  </small>
+      <div class="badges">
+  ${p.lastWatering.ferts.map(x =>
+    `<span style="background:${FERT_COLORS[x]}">${x}</span>`
+  ).join('')}
+</div>
+    `
+    : '—';
+}
+
+
+function toggleFert(f){
+  const p=plants[active];
+  p._tmpFerts.includes(f)
+    ? p._tmpFerts=p._tmpFerts.filter(x=>x!==f)
+    : p._tmpFerts.push(f);
+}
+
+function prepare(){
+  const p=plants[active];
+  if(!p._tmpFerts.length) return;
+
+  p.preparedWatering={
+    preparedAt: now(),
+    ferts:[...p._tmpFerts]
+  };
+
+  p._tmpFerts=[];
+  save();
+  renderPopup();
+}
+
+
+function watered(){
+  const p=plants[active];
+  if(!p.preparedWatering) return;
+
+  p.lastWatering={
+    wateredAt: now(),              // ⬅️ TADY JE TEN ROZDÍL
+    ferts:[...p.preparedWatering.ferts]
+  };
+
+  p.preparedWatering=null;
+  save();
+  renderPopup();
+}
+
+
+function deletePlant(){
+  if(!confirm('Opravdu smazat?')) return;
+  plants.splice(active,1);
+  save();closePopup();render();
 }
 
 setInterval(()=>{ if(active!==null) renderPopup(); },1000);
+
 </script>
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
