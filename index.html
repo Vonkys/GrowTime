@@ -149,16 +149,19 @@ const db = firebase.firestore();
 firebase.auth().signInAnonymously();
 
 const FERTS = [
-{ id:'PH', name:'PH -', dose:'2 ml' },
-{ id:'Vit', name:'SuperVit', dose:'1 kapka' },
+{ id:'H2O', name:'Voda', dose:'9 l' },
+{ id:'PH', name:'PH -', dose:'0.3 ml' },
+{ id:'Si', name:'Hesilicio', dose:'2 ml' },
+{ id:'Vit', name:'SuperVit', dose:'2 kapky' },
 { id:'CalMag', name:'CalMag', dose:'5 ml' },
-{ id:'TNT', name:'TNT', dose:'25 ml' },
-{ id:'Bloom', name:'Bloom', dose:'25 ml' },
-{ id:'Booster', name:'Booster', dose:'10 ml' },
-{ id:'Fosfor', name:'Fosfor', dose:'12.5 ml' },
-{ id:'Final', name:'FinalFlush', dose:'10 ml' },
+{ id:'TNT', name:'TNT', dose:'70 ml' },
+{ id:'Bloom', name:'Bloom', dose:'70 ml' },
+{ id:'Booster', name:'Booster', dose:'25 ml' },
+{ id:'Fosfor', name:'Fosfor', dose:'30 ml' },
+{ id:'Final', name:'FinalFlush', dose:'20 ml' },
 ];
 const FERT_COLORS = {
+  H2O: '#0B3D91',
   TNT: '#fdd835',
   Fosfor: '#42a5f5',
   Bloom: '#66bb6a',
@@ -166,6 +169,7 @@ const FERT_COLORS = {
   Booster: '#864907',
   PH: '#e608f1',
   Vit: '#ffa726',
+  Si: '#2E0854',
   Final: '#a40628'
 };
 
@@ -431,7 +435,6 @@ setInterval(()=>{ if(active!==null) renderPopup(); },1000);
 
 </body>
 </html>
-
 
 
 
