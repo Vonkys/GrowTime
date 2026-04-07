@@ -423,10 +423,21 @@ function watered(){
 }
 
 
-function deletePlant(){
+async function deletePlant(){
   if(!confirm('Opravdu smazat?')) return;
+
+  const p = plants[active];
+
+  // 🔥 smaž z Firebase
+  if(p._id){
+    await db.collection("plants").doc(p._id).delete();
+  }
+
+  // 🧹 smaž lokálně
   plants.splice(active,1);
-  save();closePopup();render();
+
+  closePopup();
+  render();
 }
 
 setInterval(()=>{ if(active!==null) renderPopup(); },1000);
@@ -435,7 +446,6 @@ setInterval(()=>{ if(active!==null) renderPopup(); },1000);
 
 </body>
 </html>
-
 
 
 
